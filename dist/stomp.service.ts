@@ -33,6 +33,7 @@ export class StompService {
 	private timer: any;
 
 	private resolveConPromise: (...args: any[]) => void;
+	private rejectConPromise: (...args: any[]) => any;
 	public queuePromises = [];
 
 	private disconnectPromise: any;
@@ -90,8 +91,11 @@ export class StompService {
 		//Connect to server
 		this.stomp.connect(this.config.headers || {}, this.onConnect,this.onError);
 		return new Promise(
-	 	  (resolve, reject) => this.resolveConPromise = resolve
-	 	);
+			(resolve, reject) => {
+				this.resolveConPromise = resolve;
+				this.rejectConPromise = reject;
+			}
+		);
 		
 	}
 
@@ -111,17 +115,18 @@ export class StompService {
 	 */
 	public onError = (error: string ) => {
 
-	  console.error(`Error: ${error}`);
+		console.warn('error', error);
+		this.rejectConPromise();
 
-	  // Check error and try reconnect
-	  if (error.indexOf('Lost connection') !== -1) {
-	    if(this.config.debug){
-	    	console.log('Reconnecting...');
-	    }
-	    this.timer = setTimeout(() => {
-	     	this.startConnect();
-	    }, this.config.recTimeout || 5000);
-	  }
+		// Check error and try reconnect
+		if (error.indexOf && error.indexOf('Lost connection') !== -1) {
+			if(this.config.debug){
+				console.log('Reconnecting...');
+			}
+			this.timer = setTimeout(() => {
+				this.startConnect();
+			}, this.config.recTimeout || 5000);
+		}
 	}
 
 	/**
