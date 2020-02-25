@@ -14,6 +14,8 @@ interface Config {
 	debug?:boolean;
 	//reconnection time (ms)
 	recTimeout?:number;
+	maxRecTimeout?:number;
+	timeoutMultiplier?:number;
 	//queue object
 	queue:any;
 	//queue cheking Time (ms)
@@ -31,6 +33,7 @@ export class StompService {
 	public stomp : any;
 
 	private timer: any;
+	private timerTry = 0;
 
 	private resolveConPromise: (...args: any[]) => void;
 	private rejectConPromise: (...args: any[]) => any;
@@ -73,7 +76,7 @@ export class StompService {
 		this.status = 'CONNECTING';
 
 		//Prepare Client
-		this.socket = new SockJS(this.config.host);
+		this.socket = new SockJS(this.config.host, undefined, {...this.config.options});
 		this.stomp = Stomp.over(this.socket);
 
 		this.stomp.heartbeat.outgoing = this.config.heartbeatOut || 10000;
@@ -106,7 +109,7 @@ export class StompService {
 	public onConnect = (frame:any) => {
 	 	this.status = 'CONNECTED';
 	 	this.resolveConPromise();
-	 	this.timer = null;
+	 	this.clearTimer();
 	 	//console.log('Connected: ' + frame);
 	}
 
@@ -125,7 +128,7 @@ export class StompService {
 			}
 			this.timer = setTimeout(() => {
 				this.startConnect();
-			}, this.config.recTimeout || 5000);
+			}, this.increaseAndGetReconnectTime());
 		}
 	}
 
@@ -164,6 +167,8 @@ export class StompService {
 	 */
 	public disconnect(): Promise<{}> {
 		this.stomp.disconnect(() => {this.resolveDisConPromise(); this.status = 'CLOSED'});
+		this.clearTimer();
+
 		return this.disconnectPromise;
 	}
 
@@ -219,6 +224,20 @@ export class StompService {
 		if(!this.config.queue.hasOwnProperty(name)){
 			throw Error("'"+name+"' has not found in queue");
 		}
+	}
+
+	private clearTimer() {
+		this.timer && clearTimeout(this.timer);
+		this.timer = null;
+		this.timerTry = 0;
+	}
+
+	private increaseAndGetReconnectTime() {
+		const defaultTimeout = this.config.recTimeout || 5000;
+		this.timerTry += 1;
+		const timeoutMultiplier = this.config.timeoutMultiplier || 2;
+		const maxTimeout = this.config.maxRecTimeout || 24 * 3600 * 1000;
+		return Math.min(maxTimeout, defaultTimeout * (Math.pow(timeoutMultiplier, this.timerTry - 1)));
 	}
 
 }
