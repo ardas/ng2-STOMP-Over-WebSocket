@@ -14,6 +14,7 @@ interface Config {
 	debug?:boolean;
 	//reconnection time (ms)
 	recTimeout?:number;
+	firstReconnectMaxRandomTimeout?:number;
 	maxRecTimeout?:number;
 	timeoutMultiplier?:number;
 	//queue object
@@ -235,6 +236,9 @@ export class StompService {
 	private increaseAndGetReconnectTime() {
 		const defaultTimeout = this.config.recTimeout || 5000;
 		this.timerTry += 1;
+		if (this.timerTry === 1 && this.config.firstReconnectMaxRandomTimeout) {
+			return Math.floor(Math.random() * this.config.firstReconnectMaxRandomTimeout);
+		}
 		const timeoutMultiplier = this.config.timeoutMultiplier || 2;
 		const maxTimeout = this.config.maxRecTimeout || 24 * 3600 * 1000;
 		return Math.min(maxTimeout, defaultTimeout * (Math.pow(timeoutMultiplier, this.timerTry - 1)));
