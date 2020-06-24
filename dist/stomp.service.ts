@@ -124,12 +124,13 @@ export class StompService {
 
 		// Check error and try reconnect
 		if (error.indexOf && error.indexOf('Lost connection') !== -1) {
+			const reconnectTimeout = this.increaseAndGetReconnectTime();
 			if(this.config.debug){
-				console.log('Reconnecting...');
+				console.log(`Reconnecting in ${reconnectTimeout / 1000} sec...`);
 			}
 			this.timer = setTimeout(() => {
 				this.startConnect();
-			}, this.increaseAndGetReconnectTime());
+			}, reconnectTimeout);
 		}
 	}
 
